@@ -13,6 +13,12 @@ patches/upstream-mr6958/0001-direct-drag.patch
 It adds direct dragging in the visible panel and hidden popup, a validated C++
 move boundary, preservation of absent IDs, and three focused tests.
 
+Public review branch:
+
+```text
+https://github.com/e-kala/plasma-workspace/tree/feature/system-tray-direct-drag-mr6958
+```
+
 Before opening or updating an upstream MR:
 
 1. Fetch the current MR 6958 head.

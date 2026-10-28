@@ -68,6 +68,9 @@ ECM_PREFIX=/path/to/ecm-prefix ./scripts/quick-install-v6.7.5.sh
 - `patches/upstream-mr6958/`: one small direct-drag commit intended to sit on
   top of KDE's active manual-ordering MR.
 
+The same upstream-ready commit is browsable as a normal Plasma Workspace
+branch in the [public KDE mirror fork](https://github.com/e-kala/plasma-workspace/tree/feature/system-tray-direct-drag-mr6958).
+
 ## Upstream relationship and credit
 
 The settings UI, persistence model, reset behavior, and original tests are a

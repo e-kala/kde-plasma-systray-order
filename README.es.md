@@ -14,6 +14,8 @@ ventana de iconos ocultos.
 - Pruebas QtTest y arneses CMake que no compilan todo Plasma Workspace.
 - Instalacion de usuario sin `sudo`, respaldo y reversion exacta.
 - Parche adicional limpio sobre el MR 6958 activo de KDE.
+- Rama de codigo revisable en el
+  [fork publico de Plasma Workspace](https://github.com/e-kala/plasma-workspace/tree/feature/system-tray-direct-drag-mr6958).
 - [Guia estructurada para agentes de IA](AI_IMPLEMENTATION_GUIDE.md), para no
   tener que redescubrir la arquitectura ni recodificar la solucion.
 
