@@ -1,0 +1,27 @@
+# KDE Plasma System Tray Manual Order
+
+> Tested implementation of persistent KDE Plasma system tray icon ordering,
+> direct drag-and-drop in the panel and hidden popup, accessible configuration,
+> safe user-local packaging, tests, and upstream patches.
+
+Canonical repository: https://github.com/e-kala/kde-plasma-systray-order
+
+Primary documents:
+
+- AI implementation contract: ./AI_IMPLEMENTATION_GUIDE.md
+- English overview: ./README.md
+- Spanish overview: ./README.es.md
+- Architecture: ./docs/ARCHITECTURE.md
+- Installation and rollback: ./docs/INSTALL.md
+- Test evidence and checklist: ./docs/TESTING.md
+- KDE upstream route: ./docs/UPSTREAM.md
+
+Reusable artifacts:
+
+- Complete Plasma 6.7.5 patch series: ./patches/v6.7.5/
+- Direct-drag extension for KDE MR 6958: ./patches/upstream-mr6958/
+- Reproducible scripts: ./scripts/
+
+Key rule: reuse the existing patch series and documented invariants; do not
+recode the feature from scratch unless the target Plasma version proves an
+incompatibility through compilation or tests.
