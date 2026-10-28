@@ -1,0 +1,42 @@
+From 6bff898b7d7ef4ccbba39c4d0d267e8dfafd40d9 Mon Sep 17 00:00:00 2001
+From: Eka <caiman.mistico@gmail.com>
+Date: Tue, 27 Oct 2026 23:09:48 -0600
+Subject: [PATCH] test: allow validating another Plasma worktree
+
+---
+ dev/standalone-tests/CMakeLists.txt | 4 +++-
+ dev/standalone-tests/README.md      | 6 ++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/dev/standalone-tests/CMakeLists.txt b/dev/standalone-tests/CMakeLists.txt
+index a69df9ddd0..fdd3e11de8 100644
+--- a/dev/standalone-tests/CMakeLists.txt
++++ b/dev/standalone-tests/CMakeLists.txt
+@@ -20,7 +20,9 @@ find_package(Plasma 6.4 REQUIRED)
+ 
+ enable_testing()
+ 
+-set(systemtray_source_dir "${CMAKE_CURRENT_LIST_DIR}/../../applets/systemtray")
++set(SYSTEMTRAY_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../applets/systemtray" CACHE PATH
++    "Path to the system tray sources to test")
++set(systemtray_source_dir "${SYSTEMTRAY_SOURCE_DIR}")
+ 
+ set(systray_order_sources
+     "${systemtray_source_dir}/sortedsystemtraymodel.cpp"
+diff --git a/dev/standalone-tests/README.md b/dev/standalone-tests/README.md
+index 892dd1d405..bc2078231c 100644
+--- a/dev/standalone-tests/README.md
++++ b/dev/standalone-tests/README.md
+@@ -13,3 +13,9 @@ cmake --build build/tests
+ ctest --test-dir build/tests --output-on-failure
+ ```
+ 
++To validate a different Plasma worktree, pass its applet source directory:
++
++```sh
++cmake -S dev/standalone-tests -B build/tests-mr \
++    -DSYSTEMTRAY_SOURCE_DIR=/path/to/plasma-workspace/applets/systemtray
++```
+-- 
+2.56.0
+

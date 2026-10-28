@@ -1,0 +1,208 @@
+From e0d8995a0888a52d61e8e74c2a642feaf7aed54a Mon Sep 17 00:00:00 2001
+From: Eka <caiman.mistico@gmail.com>
+Date: Tue, 27 Oct 2026 22:36:52 -0600
+Subject: [PATCH] test: add focused system tray build harnesses
+
+---
+ dev/standalone-applet/CMakeLists.txt | 78 ++++++++++++++++++++++++++++
+ dev/standalone-applet/README.md      |  8 +++
+ dev/standalone-tests/CMakeLists.txt  | 64 +++++++++++++++++++++++
+ dev/standalone-tests/README.md       | 15 ++++++
+ 4 files changed, 165 insertions(+)
+ create mode 100644 dev/standalone-applet/CMakeLists.txt
+ create mode 100644 dev/standalone-applet/README.md
+ create mode 100644 dev/standalone-tests/CMakeLists.txt
+ create mode 100644 dev/standalone-tests/README.md
+
+diff --git a/dev/standalone-applet/CMakeLists.txt b/dev/standalone-applet/CMakeLists.txt
+new file mode 100644
+index 0000000000..22c14304a5
+--- /dev/null
++++ b/dev/standalone-applet/CMakeLists.txt
+@@ -0,0 +1,78 @@
++# SPDX-FileCopyrightText: 2026 The plasma-systray-orden contributors
++# SPDX-License-Identifier: BSD-2-Clause
++
++cmake_minimum_required(VERSION 3.22)
++
++project(plasma_systray_applet LANGUAGES CXX)
++
++set(CMAKE_AUTOMOC ON)
++set(CMAKE_INCLUDE_CURRENT_DIR ON)
++set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
++set(CMAKE_CXX_STANDARD 20)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++
++find_package(ECM 6.26 REQUIRED NO_MODULE)
++list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
++
++include(ECMQtDeclareLoggingCategory)
++
++find_package(Qt6 6.9 REQUIRED COMPONENTS Core DBus Gui Quick Widgets)
++find_package(Qt6GuiPrivate 6.9 REQUIRED)
++find_package(KF6 6.26 REQUIRED COMPONENTS
++    Config
++    CoreAddons
++    I18n
++    IconThemes
++    ItemModels
++    JobWidgets
++    KIO
++    Service
++    StatusNotifierItem
++    WindowSystem
++    XmlGui
++)
++find_package(Plasma 6.4 REQUIRED)
++find_package(PlasmaQuick 6.4 REQUIRED)
++
++set(plasma-workspace_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../..")
++set(systemtray_source_dir "${plasma-workspace_SOURCE_DIR}/applets/systemtray")
++set(dbusmenu_source_dir "${plasma-workspace_SOURCE_DIR}/libdbusmenuqt")
++
++set(HAVE_X11 1)
++configure_file("${plasma-workspace_SOURCE_DIR}/config-X11.h.cmake" "${CMAKE_CURRENT_BINARY_DIR}/config-X11.h")
++
++include_directories(
++    "${CMAKE_CURRENT_BINARY_DIR}"
++    "${plasma-workspace_SOURCE_DIR}/statusnotifierwatcher"
++    "${dbusmenu_source_dir}"
++)
++
++set(libdbusmenu_sources
++    "${dbusmenu_source_dir}/dbusmenuimporter.cpp"
++    "${dbusmenu_source_dir}/dbusmenuimporter.h"
++    "${dbusmenu_source_dir}/dbusmenushortcut_p.cpp"
++    "${dbusmenu_source_dir}/dbusmenushortcut_p.h"
++    "${dbusmenu_source_dir}/dbusmenutypes_p.cpp"
++    "${dbusmenu_source_dir}/dbusmenutypes_p.h"
++    "${dbusmenu_source_dir}/utils.cpp"
++    "${dbusmenu_source_dir}/utils_p.h"
++)
++ecm_qt_declare_logging_category(libdbusmenu_sources
++    HEADER debug.h
++    IDENTIFIER DBUSMENUQT
++    CATEGORY_NAME org.kde.libdbusmenuqt.standalone
++)
++set_source_files_properties("${dbusmenu_source_dir}/com.canonical.dbusmenu.xml" PROPERTIES
++    NO_NAMESPACE true
++    INCLUDE "dbusmenutypes_p.h"
++    CLASSNAME DBusMenuInterface
++)
++qt_add_dbus_interface(libdbusmenu_sources
++    "${dbusmenu_source_dir}/com.canonical.dbusmenu.xml"
++    dbusmenu_interface
++)
++add_library(dbusmenuqt STATIC ${libdbusmenu_sources})
++target_link_libraries(dbusmenuqt PUBLIC Qt6::DBus Qt6::Widgets)
++set_property(TARGET dbusmenuqt PROPERTY POSITION_INDEPENDENT_CODE ON)
++
++add_subdirectory("${systemtray_source_dir}" systemtray)
+diff --git a/dev/standalone-applet/README.md b/dev/standalone-applet/README.md
+new file mode 100644
+index 0000000000..95065427e7
+--- /dev/null
++++ b/dev/standalone-applet/README.md
+@@ -0,0 +1,8 @@
++# Standalone system tray applet build
++
++This CMake project builds only the System Tray applet and its private QML
++module. It is intended for compilation checks and staging without configuring
++or replacing the complete Plasma Workspace package.
++
++It does not install anything unless `cmake --install` is explicitly invoked.
++
+diff --git a/dev/standalone-tests/CMakeLists.txt b/dev/standalone-tests/CMakeLists.txt
+new file mode 100644
+index 0000000000..a69df9ddd0
+--- /dev/null
++++ b/dev/standalone-tests/CMakeLists.txt
+@@ -0,0 +1,64 @@
++# SPDX-FileCopyrightText: 2026 The plasma-systray-orden contributors
++# SPDX-License-Identifier: BSD-2-Clause
++
++cmake_minimum_required(VERSION 3.22)
++
++project(plasma_systray_order_tests LANGUAGES CXX)
++
++set(CMAKE_AUTOMOC ON)
++set(CMAKE_CXX_STANDARD 20)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++
++find_package(ECM 6.26 REQUIRED NO_MODULE)
++list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
++
++include(ECMQtDeclareLoggingCategory)
++
++find_package(Qt6 6.9 REQUIRED COMPONENTS Core Gui Test)
++find_package(KF6 6.26 REQUIRED COMPONENTS Config Service)
++find_package(Plasma 6.4 REQUIRED)
++
++enable_testing()
++
++set(systemtray_source_dir "${CMAKE_CURRENT_LIST_DIR}/../../applets/systemtray")
++
++set(systray_order_sources
++    "${systemtray_source_dir}/sortedsystemtraymodel.cpp"
++    "${systemtray_source_dir}/sortedsystemtraymodel.h"
++    "${systemtray_source_dir}/systemtrayconfigmodel.cpp"
++    "${systemtray_source_dir}/systemtrayconfigmodel.h"
++    "${systemtray_source_dir}/systemtraysettings.cpp"
++    "${systemtray_source_dir}/systemtraysettings.h"
++)
++
++ecm_qt_declare_logging_category(systray_order_sources
++    HEADER debug.h
++    IDENTIFIER SYSTEM_TRAY
++    CATEGORY_NAME kde.systemtray.order.tests
++)
++
++add_library(systray_order_test_support STATIC ${systray_order_sources})
++target_include_directories(systray_order_test_support
++    PUBLIC
++        "${systemtray_source_dir}"
++        "${CMAKE_CURRENT_BINARY_DIR}"
++)
++target_link_libraries(systray_order_test_support
++    PUBLIC
++        Qt6::Core
++        Qt6::Gui
++        KF6::ConfigGui
++        KF6::Service
++        Plasma::Plasma
++)
++
++function(add_systray_order_test name)
++    add_executable(${name} "${systemtray_source_dir}/autotests/${name}.cpp")
++    target_include_directories(${name} PRIVATE "${systemtray_source_dir}/autotests")
++    target_link_libraries(${name} PRIVATE systray_order_test_support Qt6::Test)
++    add_test(NAME ${name} COMMAND ${name})
++    set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
++endfunction()
++
++add_systray_order_test(sortedsystemtraymodeltest)
++add_systray_order_test(systemtrayconfigmodeltest)
+diff --git a/dev/standalone-tests/README.md b/dev/standalone-tests/README.md
+new file mode 100644
+index 0000000000..892dd1d405
+--- /dev/null
++++ b/dev/standalone-tests/README.md
+@@ -0,0 +1,15 @@
++# Standalone system tray ordering tests
++
++This small CMake project builds only the system tray ordering models and their
++QtTest suites. It avoids configuring all of `plasma-workspace`, which requires
++unrelated development dependencies such as Qt Wayland Compositor.
++
++Configure it with an ECM prefix and run the tests:
++
++```sh
++cmake -S dev/standalone-tests -B build/tests \
++    -DCMAKE_PREFIX_PATH=/path/to/extra-cmake-modules-prefix
++cmake --build build/tests
++ctest --test-dir build/tests --output-on-failure
++```
++
+-- 
+2.56.0
+

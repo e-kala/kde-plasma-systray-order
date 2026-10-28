@@ -1,0 +1,36 @@
+name: Compatibility or behavior report
+description: Report a reproducible ordering, build, or version issue
+title: "[version] "
+labels: [bug]
+body:
+  - type: input
+    id: plasma
+    attributes:
+      label: Plasma version
+      placeholder: 6.7.5
+    validations:
+      required: true
+  - type: input
+    id: qt
+    attributes:
+      label: Qt and KF6 versions
+    validations:
+      required: true
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution and session
+      placeholder: CachyOS, Wayland
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Reproduction and observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Build, test, or journal output
+      render: shell

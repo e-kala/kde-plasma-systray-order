@@ -1,0 +1,9 @@
+SPDX-License-Identifier: GPL-2.0-or-later
+
+Project-authored scripts and documentation are licensed under the GNU General
+Public License, version 2 or, at your option, any later version.
+
+The patch files modify KDE Plasma Workspace sources. Each modified source file
+retains its own SPDX license header; those file-level licenses control the
+corresponding code. See https://spdx.org/licenses/GPL-2.0-or-later.html and the
+LICENSES directory in KDE Plasma Workspace for the complete license texts.

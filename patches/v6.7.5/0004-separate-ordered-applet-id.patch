@@ -1,0 +1,102 @@
+From 2634be3bfbb72dbe3c31d725f6684e6d4dd99e94 Mon Sep 17 00:00:00 2001
+From: Eka <caiman.mistico@gmail.com>
+Date: Tue, 27 Oct 2026 22:40:21 -0600
+Subject: [PATCH] build: add separately named ordered tray variant
+
+---
+ applets/systemtray/CMakeLists.txt | 12 ++++++------
+ applets/systemtray/metadata.json  |  8 ++++----
+ applets/systemtray/systemtray.cpp |  6 +++++-
+ 3 files changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/applets/systemtray/CMakeLists.txt b/applets/systemtray/CMakeLists.txt
+index 5de2ba7d02..236d60936f 100644
+--- a/applets/systemtray/CMakeLists.txt
++++ b/applets/systemtray/CMakeLists.txt
+@@ -55,7 +55,7 @@ target_link_libraries(systemtray_static
+ 
+ set_property(TARGET systemtray_static PROPERTY POSITION_INDEPENDENT_CODE ON)
+ 
+-plasma_add_applet(org.kde.plasma.systemtray
++plasma_add_applet(org.kde.plasma.systemtray.ordered
+     CPP_SOURCES
+         systemtray.cpp
+     QML_SOURCES
+@@ -79,12 +79,12 @@ plasma_add_applet(org.kde.plasma.systemtray
+         main.xml
+ )
+ 
+-ecm_add_qml_module(systemtrayplugin URI org.kde.plasma.private.systemtray GENERATE_PLUGIN_SOURCE)
+-target_sources(systemtrayplugin PRIVATE systemtraymodel.cpp)
+-target_link_libraries(systemtrayplugin PRIVATE systemtray_static)
+-ecm_finalize_qml_module(systemtrayplugin)
++ecm_add_qml_module(ordered_systemtrayplugin URI org.kde.plasma.private.systemtray.ordered GENERATE_PLUGIN_SOURCE)
++target_sources(ordered_systemtrayplugin PRIVATE systemtraymodel.cpp)
++target_link_libraries(ordered_systemtrayplugin PRIVATE systemtray_static)
++ecm_finalize_qml_module(ordered_systemtrayplugin)
+ 
+-target_link_libraries(org.kde.plasma.systemtray PRIVATE systemtray_static)
++target_link_libraries(org.kde.plasma.systemtray.ordered PRIVATE systemtray_static)
+ 
+ if(BUILD_TESTING)
+   add_subdirectory(autotests)
+diff --git a/applets/systemtray/metadata.json b/applets/systemtray/metadata.json
+index ca7ff31c81..89dcc1c5c2 100644
+--- a/applets/systemtray/metadata.json
++++ b/applets/systemtray/metadata.json
+@@ -60,7 +60,7 @@
+         ],
+         "BugReportUrl": "https://bugs.kde.org/enter_bug.cgi?product=plasmashell&component=System%20Tray%20widget",
+         "Category": "Windows and Tasks",
+-        "Description": "Quickly access system features and application status icons",
++        "Description": "System tray with persistent manual icon ordering",
+         "Description[ar]": "الوصول السريع إلى ميزات النظام وأيقونات حالة التطبيقات",
+         "Description[az]": "Sistem funksiyaları və tətbiq vəziyyət nişanlarına cəld giriş",
+         "Description[bg]": "Бърз достъп до системни функции и икони за състоянието на приложенията",
+@@ -69,7 +69,7 @@
+         "Description[cs]": "Rychlý přístup k funkcím systému a ikonám stavu aplikací",
+         "Description[da]": "Få hurtig adgang til systemfunktioner og ikoner for applikationsstatus",
+         "Description[de]": "Schneller Zugriff auf Systemfunktionen und Anwendungsstatus-Symbole",
+-        "Description[es]": "Acceso rápido a funciones del sistema e iconos de estado de las aplicaciones",
++        "Description[es]": "Bandeja del sistema con orden manual persistente de los iconos",
+         "Description[eu]": "Azkar sartu sistemaren ezaugarrietara eta aplikazioen egoera ikonoetara",
+         "Description[fi]": "Nopea pääsy järjestelmän ominaisuuksiin ja sovellusten tilakuvakkeisiin",
+         "Description[fr]": "Accédez rapidement aux fonctionnalités du système et aux icônes d'état des applications",
+@@ -105,7 +105,7 @@
+         ],
+         "Icon": "preferences-desktop-notification",
+         "License": "GPL-2.0+",
+-        "Name": "System Tray",
++        "Name": "Ordered System Tray",
+         "Name[af]": "Stelsellaai",
+         "Name[ar]": "صينية النظام",
+         "Name[ast]": "Bandexa del sistema",
+@@ -127,7 +127,7 @@
+         "Name[el]": "Πλαίσιο συστήματος",
+         "Name[en_GB]": "System Tray",
+         "Name[eo]": "Sistempleto",
+-        "Name[es]": "Bandeja del sistema",
++        "Name[es]": "Bandeja del sistema ordenable",
+         "Name[et]": "Süsteemne dokk",
+         "Name[eu]": "Sistema-erretilua",
+         "Name[fa]": "سینی سیستم",
+diff --git a/applets/systemtray/systemtray.cpp b/applets/systemtray/systemtray.cpp
+index 2358955a0e..58f44d25fa 100644
+--- a/applets/systemtray/systemtray.cpp
++++ b/applets/systemtray/systemtray.cpp
+@@ -171,7 +171,11 @@ SystemTray::~SystemTray()
+ void SystemTray::init()
+ {
+     // run this before doing any config restore
+-    migrateFromSystrayContainer();
++    // A separately named development applet must never consume or delete a
++    // legacy containment belonging to Plasma's built-in system tray.
++    if (pluginMetaData().pluginId() == u"org.kde.plasma.systemtray"_s) {
++        migrateFromSystrayContainer();
++    }
+ 
+     Containment::init();
+ 
+-- 
+2.56.0
+

@@ -1,0 +1,305 @@
+From 8f9f42607c2bba895d7bb6f11fd6bb6c107483d4 Mon Sep 17 00:00:00 2001
+From: Eka <caiman.mistico@gmail.com>
+Date: Tue, 27 Oct 2026 22:36:52 -0600
+Subject: [PATCH] systemtray: allow dragging icons to reorder
+
+---
+ .../autotests/sortedsystemtraymodeltest.cpp   | 60 +++++++++++++++++++
+ applets/systemtray/qml/AbstractItem.qml       | 37 ++++++++++++
+ applets/systemtray/qml/main.qml               |  9 +++
+ applets/systemtray/sortedsystemtraymodel.cpp  | 52 ++++++++++++++++
+ applets/systemtray/sortedsystemtraymodel.h    |  3 +
+ applets/systemtray/systemtray.cpp             |  9 +++
+ applets/systemtray/systemtray.h               |  5 ++
+ 7 files changed, 175 insertions(+)
+
+diff --git a/applets/systemtray/autotests/sortedsystemtraymodeltest.cpp b/applets/systemtray/autotests/sortedsystemtraymodeltest.cpp
+index 0c25ea640f..8203bc68df 100644
+--- a/applets/systemtray/autotests/sortedsystemtraymodeltest.cpp
++++ b/applets/systemtray/autotests/sortedsystemtraymodeltest.cpp
+@@ -37,6 +37,9 @@ private Q_SLOTS:
+     void testCustomOrderWithDuplicateItemIds();
+     void testUnlistedItemsFollowListedOnes();
+     void testCustomOrderIgnoredWhenGrouped();
++    void testMoveEnablesManualOrder();
++    void testMovePreservesAbsentItems();
++    void testInvalidMoveIgnored();
+ };
+ 
+ void SortedSystemTrayModelTest::init()
+@@ -205,6 +208,63 @@ void SortedSystemTrayModelTest::testCustomOrderIgnoredWhenGrouped()
+     QCOMPARE(settings->itemOrder(), (QStringList{u"c"_s, u"a"_s, u"b"_s}));
+ }
+ 
++void SortedSystemTrayModelTest::testMoveEnablesManualOrder()
++{
++    QPointer<SystemTraySettings> settings = createSettings();
++    MockTrayModel source({
++        {u"a"_s, u"ApplicationStatus"_s},
++        {u"b"_s, u"ApplicationStatus"_s},
++        {u"c"_s, u"ApplicationStatus"_s},
++    });
++    SortedSystemTrayModel proxy(settings);
++    proxy.setSourceModel(&source);
++
++    proxy.move(2, 0);
++
++    QVERIFY(settings->isManualItemOrder());
++    QCOMPARE(settings->itemOrder(), (QStringList{u"c"_s, u"a"_s, u"b"_s}));
++    QCOMPARE(itemIds(proxy), (QStringList{u"c"_s, u"a"_s, u"b"_s}));
++}
++
++void SortedSystemTrayModelTest::testMovePreservesAbsentItems()
++{
++    QPointer<SystemTraySettings> settings = createSettings();
++    settings->setItemOrder({u"a"_s, u"missing"_s, u"b"_s, u"c"_s});
++    settings->setManualItemOrder(true);
++
++    MockTrayModel source({
++        {u"a"_s, u"ApplicationStatus"_s},
++        {u"b"_s, u"ApplicationStatus"_s},
++        {u"c"_s, u"ApplicationStatus"_s},
++    });
++    SortedSystemTrayModel proxy(settings);
++    proxy.setSourceModel(&source);
++
++    proxy.move(2, 0);
++
++    QCOMPARE(settings->itemOrder(), (QStringList{u"c"_s, u"a"_s, u"missing"_s, u"b"_s}));
++    QCOMPARE(itemIds(proxy), (QStringList{u"c"_s, u"a"_s, u"b"_s}));
++}
++
++void SortedSystemTrayModelTest::testInvalidMoveIgnored()
++{
++    QPointer<SystemTraySettings> settings = createSettings();
++    MockTrayModel source({
++        {u"a"_s, u"ApplicationStatus"_s},
++        {u"b"_s, u"ApplicationStatus"_s},
++    });
++    SortedSystemTrayModel proxy(settings);
++    proxy.setSourceModel(&source);
++
++    proxy.move(-1, 0);
++    proxy.move(0, 2);
++    proxy.move(0, 0);
++
++    QVERIFY(!settings->isManualItemOrder());
++    QVERIFY(settings->itemOrder().isEmpty());
++    QCOMPARE(itemIds(proxy), (QStringList{u"a"_s, u"b"_s}));
++}
++
+ QTEST_MAIN(SortedSystemTrayModelTest)
+ 
+ #include "sortedsystemtraymodeltest.moc"
+diff --git a/applets/systemtray/qml/AbstractItem.qml b/applets/systemtray/qml/AbstractItem.qml
+index b3a80da95e..3f911a89ba 100644
+--- a/applets/systemtray/qml/AbstractItem.qml
++++ b/applets/systemtray/qml/AbstractItem.qml
+@@ -35,8 +35,10 @@ PlasmaCore.ToolTipArea {
+     readonly property alias iconContainer: iconContainer
+     readonly property bool inHiddenLayout: effectiveStatus === PlasmaCore.Types.PassiveStatus
+     readonly property bool inVisibleLayout: effectiveStatus === PlasmaCore.Types.ActiveStatus
++    readonly property GridView itemView: parent?.GridView.view ?? null
+ 
+     property bool effectivePressed: false
++    property int reorderIndex: -1
+ 
+     // Keep these in sync with HiddenItems.qml
+     readonly property int margins: Kirigami.Units.smallSpacing
+@@ -58,6 +60,40 @@ PlasmaCore.ToolTipArea {
+             && Kirigami.Units.longDuration > 0
+     }
+ 
++    DragHandler {
++        id: reorderHandler
++
++        target: null
++        acceptedButtons: Qt.LeftButton
++        dragThreshold: Application.styleHints.startDragDistance
++        grabPermissions: PointerHandler.CanTakeOverFromItems
++
++        onActiveChanged: {
++            if (active) {
++                abstractItem.reorderIndex = abstractItem.index;
++                abstractItem.hideImmediately();
++            } else {
++                Qt.callLater(() => abstractItem.reorderIndex = -1);
++            }
++        }
++
++        onCentroidChanged: {
++            if (!active || !abstractItem.itemView || abstractItem.reorderIndex < 0) {
++                return;
++            }
++
++            const view = abstractItem.itemView;
++            const position = view.contentItem.mapFromItem(abstractItem, centroid.position.x, centroid.position.y);
++            const targetIndex = view.indexAt(position.x, position.y);
++            if (targetIndex < 0 || targetIndex === abstractItem.reorderIndex) {
++                return;
++            }
++
++            root.moveTrayItem(view.model, abstractItem.reorderIndex, targetIndex);
++            abstractItem.reorderIndex = targetIndex;
++        }
++    }
++
+     MouseArea {
+         id: mouseArea
+         propagateComposedEvents: true
+@@ -103,6 +139,7 @@ PlasmaCore.ToolTipArea {
+         anchors.margins: abstractItem.inHiddenLayout ? abstractItem.margins : 0
+ 
+         spacing: Kirigami.Units.smallSpacing
++        opacity: reorderHandler.active ? 0.6 : 1
+ 
+         FocusScope {
+             id: iconContainer
+diff --git a/applets/systemtray/qml/main.qml b/applets/systemtray/qml/main.qml
+index 13800393cc..9961d4f01a 100644
+--- a/applets/systemtray/qml/main.qml
++++ b/applets/systemtray/qml/main.qml
+@@ -37,6 +37,15 @@ ContainmentItem {
+ 
+     readonly property alias hiddenModel: hiddenModel
+ 
++    function moveTrayItem(filteredModel: var, from: int, to: int): void {
++        if (from === to || from < 0 || to < 0) {
++            return;
++        }
++        const fromIndex = filteredModel.mapToSource(filteredModel.index(from, 0));
++        const toIndex = filteredModel.mapToSource(filteredModel.index(to, 0));
++        Plasmoid.moveItem(fromIndex, toIndex);
++    }
++
+     Component.onCompleted: {
+         // We need all the plasmoiditems to be there for correct working of shortcuts.
+         // Instantiators create the plasmoiditems: ensure this is done after
+diff --git a/applets/systemtray/sortedsystemtraymodel.cpp b/applets/systemtray/sortedsystemtraymodel.cpp
+index 9532ffde70..1c5e72e475 100644
+--- a/applets/systemtray/sortedsystemtraymodel.cpp
++++ b/applets/systemtray/sortedsystemtraymodel.cpp
+@@ -9,6 +9,7 @@
+ #include "systemtraymodel.h"
+ #include "systemtraysettings.h"
+ 
++#include <QHash>
+ #include <QList>
+ 
+ static const QList<QString> s_categoryOrder = {
+@@ -74,6 +75,57 @@ QString SortedSystemTrayModel::category(const QModelIndex &index)
+     return s_categoryOrder.contains(category) ? category : QStringLiteral("UnknownCategory");
+ }
+ 
++void SortedSystemTrayModel::move(int from, int to)
++{
++    if (!m_settings || from == to || from < 0 || to < 0 || from >= rowCount() || to >= rowCount()) {
++        return;
++    }
++
++    QStringList order = mergedOrder();
++    const int fromIndex = orderIndex(mapToSource(index(from, 0)), order);
++    const int toIndex = orderIndex(mapToSource(index(to, 0)), order);
++    if (fromIndex < 0 || toIndex < 0 || fromIndex == toIndex) {
++        return;
++    }
++
++    order.move(fromIndex, toIndex);
++    m_settings->setItemOrder(order);
++    m_settings->setManualItemOrder(true);
++}
++
++QStringList SortedSystemTrayModel::mergedOrder() const
++{
++    QStringList shown;
++    shown.reserve(rowCount());
++    for (int row = 0; row < rowCount(); ++row) {
++        shown.append(index(row, 0).data(static_cast<int>(BaseModel::BaseRole::ItemId)).toString());
++    }
++
++    if (!m_settings || !m_settings->isManualItemOrder()) {
++        return shown;
++    }
++
++    QHash<QString, int> remaining;
++    for (const QString &itemId : std::as_const(shown)) {
++        ++remaining[itemId];
++    }
++
++    QStringList order;
++    auto next = shown.cbegin();
++    for (const QString &itemId : m_settings->itemOrder()) {
++        if (remaining.value(itemId) > 0) {
++            --remaining[itemId];
++            order.append(*next++);
++        } else {
++            order.append(itemId);
++        }
++    }
++    while (next != shown.cend()) {
++        order.append(*next++);
++    }
++    return order;
++}
++
+ int SortedSystemTrayModel::orderIndex(const QModelIndex &index, const QStringList &order)
+ {
+     const QString itemId = index.data(static_cast<int>(BaseModel::BaseRole::ItemId)).toString();
+diff --git a/applets/systemtray/sortedsystemtraymodel.h b/applets/systemtray/sortedsystemtraymodel.h
+index e1c1a86571..79064f73fe 100644
+--- a/applets/systemtray/sortedsystemtraymodel.h
++++ b/applets/systemtray/sortedsystemtraymodel.h
+@@ -22,11 +22,14 @@ public:
+ 
+     static QString category(const QModelIndex &index);
+ 
++    Q_INVOKABLE void move(int from, int to);
++
+ protected:
+     bool lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const override;
+ 
+ private:
+     static int orderIndex(const QModelIndex &index, const QStringList &order);
++    QStringList mergedOrder() const;
+ 
+     QPointer<SystemTraySettings> m_settings;
+ };
+diff --git a/applets/systemtray/systemtray.cpp b/applets/systemtray/systemtray.cpp
+index 6479dc07c7..2358955a0e 100644
+--- a/applets/systemtray/systemtray.cpp
++++ b/applets/systemtray/systemtray.cpp
+@@ -460,6 +460,15 @@ QAbstractItemModel *SystemTray::configSystemTrayModel()
+     return m_configSystemTrayModel;
+ }
+ 
++void SystemTray::moveItem(const QModelIndex &from, const QModelIndex &to)
++{
++    auto *model = static_cast<SortedSystemTrayModel *>(sortedSystemTrayModel());
++    if (!from.isValid() || !to.isValid() || from.model() != model || to.model() != model) {
++        return;
++    }
++    model->move(from.row(), to.row());
++}
++
+ void SystemTray::onEnabledAppletsChanged()
+ {
+     // remove all that are not allowed anymore
+diff --git a/applets/systemtray/systemtray.h b/applets/systemtray/systemtray.h
+index a976baec58..e7a4ac0d34 100644
+--- a/applets/systemtray/systemtray.h
++++ b/applets/systemtray/systemtray.h
+@@ -64,6 +64,11 @@ public:
+      */
+     Q_INVOKABLE bool isSystemTrayApplet(const QString &appletId);
+ 
++    /**
++     * Moves an item in the persisted manual order.
++     */
++    Q_INVOKABLE void moveItem(const QModelIndex &from, const QModelIndex &to);
++
+     /**
+      * Needed to preserve keyboard navigation
+      */
+-- 
+2.56.0
+
