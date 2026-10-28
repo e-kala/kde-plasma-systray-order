@@ -7,7 +7,7 @@ This project's upstream contribution should therefore be reviewed as a small
 extension on top of MR 6958, not as a competing reimplementation:
 
 ```text
-patches/upstream-mr6958/0001-direct-drag.patch
+patches/upstream-mr6958/direct-drag-on-mr6958.patch
 ```
 
 It adds direct dragging in the visible panel and hidden popup, a validated C++

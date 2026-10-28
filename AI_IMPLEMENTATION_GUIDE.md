@@ -85,7 +85,7 @@ done
 For work based on KDE MR 6958, apply only:
 
 ```text
-patches/upstream-mr6958/0001-direct-drag.patch
+patches/upstream-mr6958/direct-drag-on-mr6958.patch
 ```
 
 ## Required verification

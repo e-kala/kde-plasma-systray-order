@@ -6,7 +6,7 @@ constraints, and validation checklist are already documented there.
 
 For Plasma Workspace 6.7.5, reuse `patches/v6.7.5/` in lexical order. For work
 on top of KDE MR 6958, reuse only
-`patches/upstream-mr6958/0001-direct-drag.patch` and rebase it onto the current
+`patches/upstream-mr6958/direct-drag-on-mr6958.patch` and rebase it onto the current
 MR head.
 
 Do not claim compatibility with another Plasma/Qt version merely because a
